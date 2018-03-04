@@ -14,11 +14,9 @@ ui <- fluidPage(sidebarLayout(
       value = 21
     ),
     
-    sliderInput(
+    numericInput(
       inputId = "rental_quote",
       label = "Quote for rental car",
-      min = 0,
-      max = 2000,
       value = 762
     ),
     
@@ -28,10 +26,12 @@ ui <- fluidPage(sidebarLayout(
       value = 1
     ),
     
-    numericInput(
+    sliderInput(
       inputId = "ppg",
       label = "Price per gallon",
-      value = 2.3
+      value = 2.3,
+      min = 1.5,
+      max = 5
     ),
     
     numericInput(
@@ -48,20 +48,23 @@ ui <- fluidPage(sidebarLayout(
     
     numericInput(
       inputId = "chg_drivers",
-      label = "Daily charge per extra driver",
+      label = "Daily charge per extra driver (rental)",
       value = 12
     ),
     
     numericInput(
       inputId = "reimbursement_rate",
       label = "Reimbursement rate ($/mile on owned car)",
-      value = 0.535
+      value = 0.535,
+      step = 0.005
     ),
     
     tags$div(
       class = "header",
       checked = NA,
-      tags$p("Parameters for owned car")
+      tags$p("Optional parameters for owned car, if a replacement car for the
+             co-owner who doesn't go on the field trip is needed, and if mile
+             overage at the end of a lease should be considered.")
     ), 
     
     sliderInput(
@@ -74,11 +77,25 @@ ui <- fluidPage(sidebarLayout(
     
     numericInput(
       inputId = "extra_rate",
-      label = "Mile overage charge ($) if car is a lease",
-      value = 0.2
+      label = "Excess miles charge ($/mile)",
+      value = 0.2,
+      step = 0.05
     )
   ),
-  mainPanel(plotOutput("lines"), plotOutput("take"))
+  
+  mainPanel(
+    tags$div(
+      class = "header",
+      checked = NA,
+      tags$p("This is a tool to help decide whether to rent a car for fieldwork 
+             or use your own. Enter values on the left. The first plot compares
+             cost to your grant for both options depending on how many miles you
+             expect to drive. The second plot shows the bottom line for the car
+             owner if a privately owned car is used.")
+    ),
+    plotOutput("lines"),
+    plotOutput("take")
+  )
 ))
 
 ##---------------------------------SERVER--------------------------------------#
@@ -97,8 +114,8 @@ server <-
     
     take_model <- function(miles) {
       # calculates whether car owner ends up with a minus or plus after the trip
-      miles * input$reimbursement_rate - (miles/input$owned_mileage) * 
-        input$ppg - input$replacement_quote - (miles * input$extra_rate)
+      (miles * input$reimbursement_rate - (miles/input$owned_mileage) * 
+        input$ppg) - input$replacement_quote - (miles * input$extra_rate)
     }
 
     output$lines <- renderPlot({
@@ -117,7 +134,7 @@ server <-
         ) +
         scale_y_continuous(label=dollar_format()) +
         theme(legend.position = "bottom") +
-        ggtitle("Cost for rental VS privately owned car") +
+        ggtitle("Costs of using rental car vs. own car") +
         ylab("Cost to grant") +
         xlab("Miles put on car")
     })
